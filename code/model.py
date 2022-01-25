@@ -1,6 +1,8 @@
 import tensorflow as tf
 import numpy as np
 
+from utils import *
+
 # 오차가 있긴 한데, 이정도는 괜찮음
 class PositionalEncoding(tf.keras.layers.Layer):
   def __init__(self, seq_len, emb_dim):

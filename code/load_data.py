@@ -2,6 +2,8 @@ import pandas as pd
 import numpy as np
 import urllib.request
 import time
+import re
+
 import tensorflow_datasets as tfds
 import tensorflow as tf
 
@@ -21,7 +23,6 @@ def load_data_korean():
       sentence = sentence.strip()
       answers.append(sentence)
 
-
     tokenizer = tfds.deprecated.text.SubwordTextEncoder.build_from_corpus(questions + answers, target_vocab_size=2**13)
     START_TOKEN, END_TOKEN = [tokenizer.vocab_size], [tokenizer.vocab_size + 1]
     VOCAB_SIZE = tokenizer.vocab_size + 2
@@ -38,45 +39,29 @@ def load_data_korean():
         tokenized_inputs.append(sentence1)
         tokenized_outputs.append(sentence2)
 
-
-      tokenized_inputs = tf.keras.preprocessing.sequence.pad_sequences(
-          tokenized_inputs, maxlen=MAX_LENGTH, padding = 'post')
-      tokenized_outputs = tf.keras.preprocessing.sequence.pad_sequences(
-          tokenized_outputs, maxlen=MAX_LENGTH, padding = 'post')
+      tokenized_inputs = tf.keras.preprocessing.sequence.pad_sequences(tokenized_inputs, maxlen=MAX_LENGTH, padding = 'post')
+      tokenized_outputs = tf.keras.preprocessing.sequence.pad_sequences(tokenized_outputs, maxlen=MAX_LENGTH, padding = 'post')
 
       return tokenized_inputs, tokenized_outputs
 
     questions, answers = tokenize_and_filter(questions, answers)
-    tensor_questions = torch.Tensor(questions).type(torch.int64)
-    tensor_answers = torch.Tensor(answers).type(torch.int64)
 
-    from torch.utils.data import TensorDataset, DataLoader
+    BATCH_SIZE = 64
+    BUFFER_SIZE = 20000
 
-    dataset = TensorDataset(tensor_questions, tensor_answers)
-    loader = DataLoader(dataset, batch_size = 64)
-
-    return loader
-
-def load_data_WMT():
-    print("HELLO")
-    config = tfds.translate.wmt.WmtConfig(
-        version="0.0.1",
-        language_pair=("en", "de"),
-        subsets={
-            tfds.Split.TRAIN: ["commoncrawl_frde"],
-            tfds.Split.VALIDATION: ["euelections_dev2019"],
+    dataset = tf.data.Dataset.from_tensor_slices((
+        {
+            'inputs': questions,
+            'dec_inputs': answers[:, :-1]
         },
-    )
+        {
+            'outputs': answers[:, 1:]
+        }
+    ))
 
-    builder = tfds.builder("wmt_translate", config=config)
-    print("HELLO")
-    builder.download_and_prepare()
+    dataset = dataset.cache()
+    dataset = dataset.shuffle(BUFFER_SIZE)
+    dataset = dataset.batch(BATCH_SIZE)
+    dataset = dataset.prefetch(tf.data.experimental.AUTOTUNE)
 
-    train_dataset = builder.as_dataset(split = tfds.Split.TRAIN)
-    valid_dataset = builder.as_dataset(split = tfds.Split.VALIDATION)
-
-    print("HELLO")
-    print(train_dataset.take(1))
-
-
-    return builder
+    return dataset, tokenizer

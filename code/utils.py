@@ -1,4 +1,5 @@
 import tensorflow as tf
+import numpy as np
 
 # [JH] Clear
 # Given a token sequence, convert it into a padding mask.
@@ -17,7 +18,8 @@ def look_ahead_mask(inputs):
   return tf.maximum(look_ahead, padding)
 
 def loss_function(y_true, y_pred):
-  y_true = tf.reshape(y_true, shape=(-1, MAX_LENGTH - 1))
+  MAX_LENGTH = 40
+  y_true = tf.reshape(y_true, shape=(-1, MAX_LENGTH-1))
 
   loss = tf.keras.losses.SparseCategoricalCrossentropy(
       from_logits=True, reduction='none')(y_true, y_pred)
@@ -27,9 +29,9 @@ def loss_function(y_true, y_pred):
 
   return tf.reduce_mean(loss)
 
- def accuracy(y_true, y_pred):
-   y_true = tf.reshape(y_true, shape=(-1, MAX_LENGTH -1))
-   return tf.keras.metrics.sparse_categorical_accuracy(y_true, y_pred)
+def accuracy(y_true, y_pred):
+    y_true = tf.reshape(y_true, shape=(-1, MAX_LENGTH -1))
+    return tf.keras.metrics.sparse_categorical_accuracy(y_true, y_pred)
 
 class CustomSchedule(tf.keras.optimizers.schedules.LearningRateSchedule):
 
